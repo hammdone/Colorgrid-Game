@@ -19,6 +19,14 @@ body {
   color: #fff;
 }
 
+.profile-preview {
+  max-width: 150px; /* or any preferred width */
+  max-height: 150px; /* or any preferred height */
+  object-fit: cover; /* ensures the image is contained within the box */
+  border-radius: 50%; /* optional: gives a rounded appearance */
+}
+
+
 @keyframes gradientBG {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
@@ -95,4 +103,17 @@ body {
 
 .auth-footer a:hover {
   text-decoration: underline;
+}
+
+.error-box {
+  background-color: #ffebee;
+  border: 1px solid #f44336;
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 20px;
+}
+
+.error-message {
+  color: #f44336;
+  margin: 0;
 }
