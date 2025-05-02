@@ -6,22 +6,22 @@ import { maxAreaOfIsland } from '../utils/maxAreaOfIsland.js';
 class GameController {
   constructor(io) {
     this.io = io;
-    this.waitingPlayers = new Map(); // username -> socket
-    this.activeGames = new Map(); // gameId -> { game, players: Map(username -> socket) }
+    this.waitingPlayers = new Map();
+    this.activeGames = new Map(); 
     this._matchingInProgress = false;
     
-    // Load waiting players from DB on startup
+
     this.loadWaitingPlayers();
     
-    // Set up heartbeat interval
-    setInterval(() => this.checkPlayerConnections(), 10000); // Every 10 seconds
+
+    setInterval(() => this.checkPlayerConnections(), 10000); 
   }
 
   async loadWaitingPlayers() {
     try {
       const players = await WaitingPlayer.find();
       players.forEach(player => {
-        // Note: Sockets will need to reconnect
+
         this.waitingPlayers.set(player.username, null); 
       });
       console.log(`Loaded ${players.length} waiting players from DB`);
@@ -33,17 +33,17 @@ class GameController {
   async addToWaiting(username, socket) {
     console.log(`[DB] Adding ${username} to waiting players`);
     try {
-      // Check if player already exists in DB
+
       const existingPlayer = await WaitingPlayer.findOne({ username });
       if (existingPlayer) {
-        // Update socket ID
+
         await WaitingPlayer.updateOne(
           { username }, 
           { $set: { socketId: socket.id, updatedAt: new Date() } }
         );
         console.log(`Updated socket ID for existing player ${username}`);
       } else {
-        // Create new waiting player
+
         await WaitingPlayer.create({
           username,
           socketId: socket.id
@@ -51,7 +51,7 @@ class GameController {
         console.log(`Created new waiting player ${username}`);
       }
       
-      // Update in-memory map
+
       this.waitingPlayers.set(username, socket);
       
       console.log(`Current waiting players (${this.waitingPlayers.size}):`, 
@@ -60,7 +60,7 @@ class GameController {
       return true;
     } catch (err) {
       console.error(`Error adding ${username} to waiting players DB:`, err);
-      // Still add to in-memory map even if DB operation fails
+
       this.waitingPlayers.set(username, socket);
       return false;
     }
@@ -74,7 +74,7 @@ class GameController {
       return true;
     } catch (err) {
       console.error(`Error removing ${username} from waiting players DB:`, err);
-      // Still remove from in-memory map even if DB operation fails
+
       this.waitingPlayers.delete(username);
       return false;
     }
@@ -84,14 +84,13 @@ class GameController {
     console.log('Checking player connections...');
     const disconnectedPlayers = [];
     
-    // Check waiting players
+
     for (const [username, socket] of this.waitingPlayers.entries()) {
       if (!socket || !socket.connected) {
         disconnectedPlayers.push(username);
       }
     }
-    
-    // Remove disconnected players
+
     for (const username of disconnectedPlayers) {
       console.log(`Removing disconnected player from waiting: ${username}`);
       await this.removeFromWaiting(username);
@@ -99,8 +98,7 @@ class GameController {
     
     console.log(`Removed ${disconnectedPlayers.length} disconnected players`);
     console.log(`Remaining waiting players: ${this.waitingPlayers.size}`);
-    
-    // If we still have enough players after cleanup, try to match
+
     if (this.waitingPlayers.size >= 2 && !this._matchingInProgress) {
       console.log('Attempting to match players after cleanup...');
       this.matchPlayers();
@@ -108,7 +106,7 @@ class GameController {
   }
   
   async matchPlayers() {
-    // Prevent concurrent matching
+
     if (this._matchingInProgress) {
       console.log('Matchmaking already in progress, skipping...');
       return;
@@ -120,49 +118,48 @@ class GameController {
     try {
       console.log(`Current waiting players: ${this.waitingPlayers.size}`);
       
-      // We need at least 2 players to match
+
       if (this.waitingPlayers.size < 2) {
         console.log('Not enough players to match');
         this._matchingInProgress = false;
         return;
       }
       
-      // Get players with connected sockets
+
       const validPlayers = Array.from(this.waitingPlayers.entries())
         .filter(([_, socket]) => socket && socket.connected);
       
       console.log(`Valid players for matching: ${validPlayers.length}`);
       
-      // Need at least 2 valid players
+
       if (validPlayers.length < 2) {
         console.log('Not enough connected players for matching');
         this._matchingInProgress = false;
         return;
       }
       
-      // Take the first two players for matching
+
       const [player1, player1Socket] = validPlayers[0];
       const [player2, player2Socket] = validPlayers[1];
       
       console.log(`🎮 Matching players: ${player1} vs ${player2}`);
       
       try {
-        // Create a new game
+
         const game = await this.createGame(player1, player2);
         console.log(`📋 Game created with ID: ${game._id}`);
-        
-        // Start the game
+
         this.startGame(game, player1Socket, player2Socket);
         console.log(`🎮 Game started: ${game._id}`);
         
-        // Remove players from waiting queue
+
         await this.removeFromWaiting(player1);
         await this.removeFromWaiting(player2);
         
-        console.log(`✅ Successfully matched ${player1} and ${player2}`);
+        console.log(`Successfully matched ${player1} and ${player2}`);
       } catch (err) {
-        console.error('❌ Error creating game:', err);
-        // Send error to clients
+        console.error('Error creating game:', err);
+
         if (player1Socket && player1Socket.connected) {
           player1Socket.emit('matchmaking_error', {
             message: 'Failed to create game, please try again'
@@ -186,7 +183,6 @@ class GameController {
     console.log('  Socket ID:', socket.id);
     console.log('  Connected at:', new Date().toISOString());
     
-    // Log all incoming events
     socket.onAny((event, ...args) => {
       console.log(`\n📢 INCOMING EVENT: ${event}`);
       console.log('  From:', socket.id);
@@ -196,9 +192,9 @@ class GameController {
     
     console.log(`[Socket] New connection ID: ${socket.id}`);
     
-    // Add a debounce mechanism to prevent multiple rapid events
+
     const eventTimestamps = {};
-    const debounceTime = 2000; // 2 seconds
+    const debounceTime = 2000;
     
     const debounceEvent = (eventName, handler) => {
       socket.on(eventName, (...args) => {
@@ -214,24 +210,23 @@ class GameController {
       });
     };
     
-    // Handle find_match with debounce
+
     debounceEvent('find_match', async (data) => {
-      // Handle both string and object formats
+
       const username = typeof data === 'object' ? data.username : data;
       
       console.log(`[Socket] Find match from ${username}`);
       try {
         await this.handleJoinGame(socket, username);
         console.log(`[Socket] ${username} added to queue`);
-        
-        // Acknowledge the request
+
         socket.emit('matchmaking_status', { 
           status: 'queued',
           username: username,
           queueSize: this.waitingPlayers.size
         });
 
-        // Try to match players right away if possible
+
         if (this.waitingPlayers.size >= 2 && !this._matchingInProgress) {
           console.log('Attempting matchmaking immediately after new player joined');
           this.matchPlayers();
@@ -242,9 +237,9 @@ class GameController {
       }
     });
 
-    // Handle joinGame with debounce
+
     debounceEvent('joinGame', async (data) => {
-      // Handle both formats: string or object
+
       const username = typeof data === 'object' ? data.username : data;
       const gameId = typeof data === 'object' ? data.gameId : null;
       
@@ -252,13 +247,13 @@ class GameController {
       
       try {
         if (gameId) {
-          // Join specific game
+
           await this.handleJoinExistingGame(socket, username, gameId);
         } else {
-          // Join matchmaking
+
           await this.handleJoinGame(socket, username);
           
-          // Try to match players right away if possible
+
           if (this.waitingPlayers.size >= 2 && !this._matchingInProgress) {
             console.log('Attempting matchmaking immediately after new player joined');
             this.matchPlayers();
@@ -271,11 +266,10 @@ class GameController {
       }
     });
 
-    // Handle makeMove with debounce
     debounceEvent('makeMove', async (data) => {
       console.log(`[Socket] Make move request from ${data.player || data.username} (socket ${socket.id})`);
       try {
-        // Use player field or username field
+
         const moveData = {
           gameId: data.gameId,
           row: data.row,
@@ -288,9 +282,9 @@ class GameController {
       }
     });
 
-    // Handle all cancel events using the same handler with debounce
+
     const cancelHandler = async (data) => {
-      // Handle both string and object format
+ 
       const username = typeof data === 'object' ? data.username : data;
       
       console.log(`[Socket] Canceling matchmaking for ${username}`);
@@ -309,7 +303,7 @@ class GameController {
     debounceEvent('cancelMatch', cancelHandler);
     debounceEvent('leaveQueue', cancelHandler);
 
-    // Handle forfeit with debounce
+
     debounceEvent('forfeit', async (data) => {
       console.log(`[Socket] Forfeit request from ${data.username} (socket ${socket.id})`);
       try {
@@ -334,24 +328,24 @@ class GameController {
       }
     });
     
-    // Handle saving game snapshots for history
+
     socket.on('saveGameSnapshot', async (data) => {
       try {
         console.log(`[Socket] Saving game snapshot for game ${data.gameId}`);
         
-        // Find the game in the database
+
         const gameDoc = await Game.findById(data.gameId);
         if (gameDoc) {
-          // Update the game with final state
+
           gameDoc.grid = data.grid;
           gameDoc.status = data.status || 'finished';
           gameDoc.winner_username = data.winner;
           
-          // Save the snapshot
+
           await gameDoc.save();
           console.log(`Game snapshot saved for ${data.gameId}`);
           
-          // Notify the client
+
           socket.emit('snapshotSaved', { success: true, gameId: data.gameId });
         } else {
           console.error(`Game ${data.gameId} not found for snapshot`);
@@ -363,27 +357,26 @@ class GameController {
       }
     });
 
-    // Error handlers
+
     socket.on('error', (err) => {
       console.error(`[Socket] Error on ${socket.id}:`, err);
     });
   }
 
   async handleJoinExistingGame(socket, username, gameId) {
-    // Check if game exists in active games
+
     if (this.activeGames.has(gameId)) {
       const gameData = this.activeGames.get(gameId);
-      
-      // Add player socket to game
+
       gameData.players.set(username, socket);
       
-      // Join socket to game room
+
       socket.join(`game:${gameId}`);
       
-      // Find opponent username
+
       const opponentUsername = gameData.game.players.find(p => p.username !== username)?.username;
       
-      // Get opponent profile picture if available
+
       let opponentProfilePicture = '/default-avatar.png';
       try {
         if (opponentUsername) {
@@ -395,16 +388,15 @@ class GameController {
       } catch (err) {
         console.error(`Error fetching opponent profile picture:`, err);
       }
-      
-      // Send current game state
+
       socket.emit('gameState', {
         gameId: gameId,
         grid: gameData.game.grid,
         currentTurn: gameData.game.currentTurn,
         status: gameData.game.status,
-        // Find player info
+
         playerColor: gameData.game.players.find(p => p.username === username)?.color,
-        // Find opponent info
+
         opponent: opponentUsername,
         opponentColor: gameData.game.players.find(p => p.username !== username)?.color,
         opponentProfilePicture: opponentProfilePicture
@@ -412,11 +404,11 @@ class GameController {
       
       console.log(`Player ${username} joined existing game ${gameId}`);
     } else {
-      // Try to load game from database
+
       try {
         const game = await Game.findById(gameId);
         if (game) {
-          // Initialize game state
+
           const gameState = {
             _id: game._id,
             players: [
@@ -428,22 +420,22 @@ class GameController {
             status: game.status || 'playing'
           };
           
-          // Create a new active game
+
           const gameRoom = new Map([[username, socket]]);
           this.activeGames.set(gameId, { game: gameState, players: gameRoom });
           
-          // Join socket to game room
+
           socket.join(`game:${gameId}`);
           
-          // Send game state
+
           socket.emit('gameState', {
             gameId: gameId,
             grid: gameState.grid,
             currentTurn: gameState.currentTurn,
             status: gameState.status,
-            // Find player info
+
             playerColor: gameState.players.find(p => p.username === username)?.color,
-            // Find opponent info
+
             opponent: gameState.players.find(p => p.username !== username)?.username,
             opponentColor: gameState.players.find(p => p.username !== username)?.color
           });
@@ -462,13 +454,12 @@ class GameController {
   async handleJoinGame(socket, username) {
     console.log(`Handling join game for ${username}`);
     
-    // Store the socket in the waiting players map
     await this.addToWaiting(username, socket);
     console.log(`${username} added to queue (size: ${this.waitingPlayers.size})`);
     
-    // Check if we have enough players for matchmaking
+
     if (this.waitingPlayers.size >= 2) {
-      // Don't await this, let it run asynchronously
+
       this.matchPlayers();
     }
   }
@@ -480,35 +471,35 @@ class GameController {
       return;
     }
 
-    // Update grid
+
     const newGrid = JSON.parse(JSON.stringify(gameData.game.grid)); // Deep copy
     
-    // Find player color
+
     const playerColor = gameData.game.players.find(p => p.username === username)?.color;
     if (!playerColor) {
       console.log('Player color not found');
       return;
     }
     
-    // Check if cell is empty
+
     if (newGrid[row][col] !== null && newGrid[row][col] !== 0) {
       console.log('Cell already occupied');
       return;
     }
     
-    // Update the cell
+
     newGrid[row][col] = playerColor;
     gameData.game.grid = newGrid;
     
-    // Check if grid is full
+
     const isGridFull = newGrid.every(row => row.every(cell => cell !== null && cell !== 0));
     
     if (isGridFull) {
-      // Determine winner
+
       const player1 = gameData.game.players[0];
       const player2 = gameData.game.players[1];
       
-      // Create grids for each player's color
+
       const player1Grid = newGrid.map(row => 
         row.map(cell => cell === player1.color ? 1 : 0)
       );
@@ -516,7 +507,7 @@ class GameController {
         row.map(cell => cell === player2.color ? 1 : 0)
       );
       
-      // Calculate max areas
+
       const player1Area = maxAreaOfIsland(player1Grid);
       const player2Area = maxAreaOfIsland(player2Grid);
       
@@ -527,23 +518,23 @@ class GameController {
         winner = player2.username;
       }
       
-      // Game over
+
       gameData.game.status = 'finished';
       gameData.game.winner = winner;
       
-      // Update database
+
       try {
         const gameDoc = await Game.findById(gameId);
         if (gameDoc) {
           gameDoc.grid = newGrid;
           gameDoc.status = 'finished';
           gameDoc.winner_username = winner;
-          // Fixed result value
+
           gameDoc.result = winner ? 'win' : 'draw';
           await gameDoc.save();
         }
         
-        // Update player coins
+
         if (winner) {
           await User.updateOne(
             { username: winner }, 
@@ -556,7 +547,7 @@ class GameController {
             { $inc: { coins: -200, losses: 1 } }
           );
         } else {
-          // Draw
+
           await User.updateOne(
             { username: player1.username }, 
             { $inc: { draws: 1 } }
@@ -570,7 +561,7 @@ class GameController {
         console.error('Error updating game in database:', err);
       }
       
-      // Notify players
+
       this.io.to(`game:${gameId}`).emit('gameOver', { 
         winner,
         grid: newGrid,
@@ -579,14 +570,14 @@ class GameController {
         status: 'completed'
       });
       
-      // Cleanup
+
       this.activeGames.delete(gameId);
     } else {
-      // Continue game - switch turn
+
       const opponent = gameData.game.players.find(p => p.username !== username)?.username;
       gameData.game.currentTurn = opponent;
       
-      // Update database
+
       try {
         const gameDoc = await Game.findById(gameId);
         if (gameDoc) {
@@ -598,7 +589,7 @@ class GameController {
         console.error('Error updating game in database:', err);
       }
       
-      // Notify players
+
       this.io.to(`game:${gameId}`).emit('moveMade', { 
         grid: newGrid, 
         currentTurn: opponent,
@@ -614,29 +605,29 @@ class GameController {
       return;
     }
 
-    // Find opponent
+
     const opponent = gameData.game.players.find(p => p.username !== username)?.username;
     if (!opponent) {
       console.log('Opponent not found');
       return;
     }
 
-    // Update game status
+
     gameData.game.status = 'forfeit';
     gameData.game.winner = opponent;
 
-    // Update database
+
     try {
       const gameDoc = await Game.findById(gameId);
       if (gameDoc) {
         gameDoc.status = 'forfeit';
         gameDoc.winner_username = opponent;
-        // Use a valid result value based on your schema
+
         gameDoc.result = 'win';
         await gameDoc.save();
       }
       
-      // Update player coins
+
       await User.updateOne(
         { username }, 
         { $inc: { coins: -200, losses: 1 } }
@@ -649,21 +640,20 @@ class GameController {
       console.error('Error updating game in database:', err);
     }
 
-    // Notify players
+
     this.io.to(`game:${gameId}`).emit('gameOver', { 
       winner: opponent, 
       status: 'forfeit'
     });
 
-    // Cleanup
+
     this.activeGames.delete(gameId);
   }
 
   handleDisconnect(socket) {
-    // Find username by socket
+
     let disconnectedUsername = null;
     
-    // Check waiting players
     for (const [username, playerSocket] of this.waitingPlayers.entries()) {
       if (playerSocket === socket) {
         disconnectedUsername = username;
@@ -673,23 +663,23 @@ class GameController {
       }
     }
     
-    // Check active games
+
     if (!disconnectedUsername) {
       for (const [gameId, gameData] of this.activeGames.entries()) {
         for (const [username, playerSocket] of gameData.players.entries()) {
           if (playerSocket === socket) {
             disconnectedUsername = username;
             
-            // Find opponent
+
             const opponent = gameData.game.players.find(p => p.username !== username)?.username;
             const opponentSocket = opponent ? gameData.players.get(opponent) : null;
             
             if (opponentSocket && gameData.game.status === 'playing') {
-              // Handle as forfeit
+
               this.handleForfeit(socket, { gameId, username });
               console.log(`Player ${username} disconnected from game ${gameId}, handling as forfeit`);
             } else {
-              // Just remove the game
+
               this.activeGames.delete(gameId);
               console.log(`Removed game ${gameId} due to player disconnect`);
             }
@@ -703,7 +693,7 @@ class GameController {
 
   async createGame(player1, player2) {
     try {
-      // Get user objects
+
       const user1 = await User.findOne({ username: player1 });
       const user2 = await User.findOne({ username: player2 });
       
@@ -711,13 +701,12 @@ class GameController {
         throw new Error(`Users not found: ${player1}, ${player2}`);
       }
       
-      // Generate random colors
+
       const colors = this.getRandomColors();
-      
-      // Create initial empty grid (5x5)
+
       const emptyGrid = Array(5).fill().map(() => Array(5).fill(null));
       
-      // Create game document with required fields based on your schema
+
       const game = new Game({
         player1_id: user1._id,
         player2_id: user2._id,
@@ -725,15 +714,15 @@ class GameController {
         player2_username: player2,
         player1_color: colors[0],
         player2_color: colors[1],
-        final_grid: emptyGrid,  // Changed from 'grid' to 'final_grid' to match schema
-        result: 'win',  // This is just initial value, will be updated when game ends
+        final_grid: emptyGrid, 
+        result: 'win', 
         currentTurn: player1
       });
       
       const savedGame = await game.save();
       console.log(`Game created with ID: ${savedGame._id}`);
       
-      // Build and return game object for use in-memory
+
       return {
         _id: savedGame._id,
         players: [
@@ -755,29 +744,29 @@ class GameController {
     const player1 = game.players[0].username;
     const player2 = game.players[1].username;
     
-    // Create game room
+
     const gameRoom = new Map([
       [player1, player1Socket],
       [player2, player2Socket]
     ]);
     
-    // Store in active games
+
     this.activeGames.set(gameId, { 
       game, 
       players: gameRoom 
     });
 
-    // Join sockets to game room
+
     if (player1Socket) player1Socket.join(`game:${gameId}`);
     if (player2Socket) player2Socket.join(`game:${gameId}`);
 
-    // Send the gameStart event with consistent structure to both players
+
     const gameStartEvent = {
       gameId,
       currentTurn: game.currentTurn
     };
     
-    // Notify player 1
+
     if (player1Socket && player1Socket.connected) {
       player1Socket.emit('gameStart', {
         ...gameStartEvent,
@@ -787,7 +776,6 @@ class GameController {
       });
     }
     
-    // Notify player 2
     if (player2Socket && player2Socket.connected) {
       player2Socket.emit('gameStart', {
         ...gameStartEvent,

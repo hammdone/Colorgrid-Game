@@ -1,16 +1,12 @@
-// routes/leaderboard.js
 import express from 'express';
 import { User } from '../models/user.js';
 
 const router = express.Router();
 
-// Get all users sorted by coins for leaderboard
 router.get('/', async (req, res) => {
   try {
     console.log('Fetching leaderboard data...');
-    
-    // Find all users and sort by coins in descending order (as per requirement)
-    // You can change back to sorting by wins if that's preferred
+
     const users = await User.find({}, {
       username: 1,
       coins: 1,
@@ -19,9 +15,8 @@ router.get('/', async (req, res) => {
       draws: 1,
       profilePicture: 1,
       _id: 1
-    }).sort({ coins: -1 }).limit(20); // Sort by coins
-
-    // Ensure all required fields are present
+    }).sort({ coins: -1 }).limit(20);
+    
     const formattedUsers = users.map(user => ({
       _id: user._id,
       username: user.username,

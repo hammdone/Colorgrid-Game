@@ -25,11 +25,11 @@ function Login({ setUser }) {
     e.preventDefault();
     
     if (isLoggingIn) {
-      return; // Prevent multiple submissions
+      return;
     }
     
     setIsLoggingIn(true);
-    setError(''); // Clear any previous errors
+    setError('');
     setSocketStatus('Authenticating...');
     
     try {
@@ -43,25 +43,25 @@ function Login({ setUser }) {
         throw new Error('Invalid response from server - missing user data');
       }
       
-      // Store user data in state and localStorage
+
       setUser(response.data.user);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
-      // Store token in localStorage if provided
+   
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
       }
       
-      // Establish socket connection before navigation
+
       setSocketStatus('Connecting to socket...');
       
       try {
-        // Check if a socket already exists and is connected
+
         if (window.socket && window.socket.connected) {
           console.log('Socket already connected:', window.socket.id);
           setSocketStatus('Socket already connected! Redirecting...');
           
-          // Still navigate after short delay
+
           setTimeout(() => {
             setIsLoggingIn(false);
             navigate('/home');
@@ -69,7 +69,7 @@ function Login({ setUser }) {
           return;
         }
         
-        // Create a new socket connection
+
         const socket = io('http://localhost:3000', {
           auth: {
             username: response.data.user.username,
@@ -81,33 +81,31 @@ function Login({ setUser }) {
           transports: ['websocket']
         });
         
-        // Store socket in window for global access
+
         window.socket = socket;
         
         // Connection event handlers
         socket.on('connect', () => {
-          console.log('✅ Socket connected immediately after login! Socket ID:', socket.id);
+          console.log('Socket connected immediately after login! Socket ID:', socket.id);
           setSocketStatus('Socket connected successfully! Redirecting...');
           
-          // Navigate only after socket connection is established
+
           setTimeout(() => {
             setIsLoggingIn(false);
             navigate('/home');
-          }, 500); // Short delay to let the user see the success message
+          }, 500);
         });
         
         socket.on('connect_error', (err) => {
-          console.error('❌ Socket connection error:', err);
+          console.error('Socket connection error:', err);
           setSocketStatus(`Socket error: ${err.message}`);
           setIsLoggingIn(false);
           
-          // Still navigate, but with a warning
           setTimeout(() => {
             navigate('/home');
           }, 1500);
         });
         
-        // Set a timeout to navigate even if socket connection takes too long
         setTimeout(() => {
           if (!socket.connected) {
             console.warn('Socket connection taking too long, navigating anyway');
@@ -121,7 +119,6 @@ function Login({ setUser }) {
         setSocketStatus(`Socket initialization error: ${socketErr.message}`);
         setIsLoggingIn(false);
         
-        // Navigate despite socket error
         setTimeout(() => {
           navigate('/home');
         }, 1500);

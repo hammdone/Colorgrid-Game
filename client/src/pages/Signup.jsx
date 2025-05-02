@@ -24,13 +24,12 @@ function Signup({ setUser }) {
     e.preventDefault();
     
     if (isSubmitting) {
-      return; // Prevent multiple submissions
+      return; 
     }
     
     setIsSubmitting(true);
-    setError(''); // Clear any previous errors
-    
-    // Basic validation for profile picture URL if provided
+    setError(''); 
+
     if (formData.profilePicture && !isValidUrl(formData.profilePicture)) {
       setError('Please enter a valid URL for the profile picture');
       setIsSubmitting(false);
@@ -42,7 +41,7 @@ function Signup({ setUser }) {
       
       const response = await axios.post('http://localhost:3000/api/auth/signup', {
         ...formData,
-        coins: 1000 // Initial coins as per requirement
+        coins: 1000 
       });
       
       console.log('Signup response:', response.data);
@@ -51,11 +50,9 @@ function Signup({ setUser }) {
         throw new Error('Invalid response from server - missing user data');
       }
       
-      // Store user data in state and localStorage
       setUser(response.data.user);
       localStorage.setItem('user', JSON.stringify(response.data.user));
       
-      // Store token in localStorage if provided
       if (response.data.token) {
         localStorage.setItem('token', response.data.token);
       }
@@ -68,7 +65,7 @@ function Signup({ setUser }) {
     }
   };
 
-  // Helper function to validate URLs
+
   const isValidUrl = (string) => {
     try {
       new URL(string);

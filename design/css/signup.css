@@ -20,10 +20,10 @@ body {
 }
 
 .profile-preview {
-  max-width: 150px; /* or any preferred width */
-  max-height: 150px; /* or any preferred height */
-  object-fit: cover; /* ensures the image is contained within the box */
-  border-radius: 50%; /* optional: gives a rounded appearance */
+  max-width: 150px; 
+  max-height: 150px; 
+  object-fit: cover; 
+  border-radius: 50%;
 }
 
 

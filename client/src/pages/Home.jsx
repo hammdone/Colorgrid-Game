@@ -10,14 +10,14 @@ function Home({ user, setUser }) {
   const [connectionStatus, setConnectionStatus] = useState('checking');
   const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch updated user data when component mounts
+
   useEffect(() => {
     if (!user) {
       navigate('/login');
       return;
     }
 
-    // Function to fetch fresh user data from server
+
     const fetchUserData = async () => {
       try {
         setIsLoading(true);
@@ -31,7 +31,7 @@ function Home({ user, setUser }) {
         if (response.data && response.data.user) {
           console.log('Updated user data:', response.data.user);
           setUser(response.data.user);
-          // Also update localStorage to keep everything in sync
+
           localStorage.setItem('user', JSON.stringify(response.data.user));
         }
       } catch (err) {
@@ -41,10 +41,10 @@ function Home({ user, setUser }) {
       }
     };
 
-    // Fetch updated user data
+
     fetchUserData();
 
-    // Check if socket exists and is connected
+
     if (!window.socket || !window.socket.connected) {
       console.log('No active socket connection in Home, initializing...');
       setConnectionStatus('connecting');
@@ -63,12 +63,12 @@ function Home({ user, setUser }) {
       window.socket = socket;
       
       socket.on('connect', () => {
-        console.log('✅ Socket connected in Home component! Socket ID:', socket.id);
+        console.log('Socket connected in Home component! Socket ID:', socket.id);
         setConnectionStatus('connected');
       });
       
       socket.on('connect_error', (err) => {
-        console.error('❌ Socket connection error in Home:', err);
+        console.error('Socket connection error in Home:', err);
         setConnectionStatus('error: ' + err.message);
       });
       
@@ -76,7 +76,7 @@ function Home({ user, setUser }) {
         console.log('⚠️ Socket disconnected in Home:', reason);
         setConnectionStatus('disconnected: ' + reason);
         
-        // Auto-reconnect after a short delay
+
         setTimeout(() => {
           if (socket && !socket.connected) {
             console.log('Attempting to reconnect...');
@@ -89,7 +89,7 @@ function Home({ user, setUser }) {
       setConnectionStatus(window.socket.connected ? 'connected' : 'disconnected');
     }
     
-    // Set up a ping interval to keep connection alive
+
     const pingInterval = setInterval(() => {
       if (window.socket && window.socket.connected) {
         window.socket.emit('ping', { timestamp: Date.now() }, (response) => {
@@ -98,14 +98,12 @@ function Home({ user, setUser }) {
           }
         });
       }
-    }, 30000); // Every 30 seconds
+    }, 30000); 
     
     return () => {
       clearInterval(pingInterval);
-      
-      // Do not disconnect the socket when navigating away
+
       if (window.socket) {
-        // Remove event listeners for this component
         window.socket.off('connect');
         window.socket.off('connect_error');
         window.socket.off('disconnect');
@@ -114,28 +112,23 @@ function Home({ user, setUser }) {
   }, [user, navigate, setUser]);
 
   const handlePlayClick = () => {
-    // Double check socket connection before navigating to waiting
     if (!window.socket || !window.socket.connected) {
       console.log('Socket not connected, attempting to reconnect...');
       
       if (window.socket) {
         window.socket.connect();
         
-        // Wait for connection before proceeding
         window.socket.once('connect', () => {
           navigate('/newgame/waiting');
         });
         
-        // If connection fails after timeout, navigate anyway
         setTimeout(() => {
           navigate('/newgame/waiting');
         }, 2000);
       } else {
-        // Socket doesn't exist, create it in the waiting component
         navigate('/newgame/waiting');
       }
     } else {
-      // Socket is already connected, proceed directly
       navigate('/newgame/waiting');
     }
   };
@@ -160,7 +153,6 @@ function Home({ user, setUser }) {
                 e.target.onerror = null;
                 e.target.src = '/default-avatar.png';
                 
-                // If the URL is a Google Images URL, try to fix it
                 if (user.profilePicture && user.profilePicture.includes('images.app.goo.gl')) {
                   console.log('Detected Google Images URL, this type of URL cannot be used directly');
                 }

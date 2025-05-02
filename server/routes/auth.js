@@ -43,23 +43,19 @@ router.post('/signup', async (req, res) => {
   }
 });
 
-// Login route - simple authentication
 router.post('/login', async (req, res) => {
   try {
     const { username, password } = req.body;
 
-    // Find user
     const user = await User.findOne({ username });
     if (!user) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Simple check if password matches
     if (user.password !== password) {
       return res.status(401).json({ message: 'Invalid credentials' });
     }
 
-    // Remove password from response
     const userResponse = {
       _id: user._id,
       username: user.username,
