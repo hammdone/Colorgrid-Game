@@ -13,7 +13,7 @@ function GameHistory({ user, setUser }) {
 
   useEffect(() => {
     if (!user) {
-      navigate('/login');
+      navigate('/login'); //redirets to login if no user is present
       return;
     }
 
